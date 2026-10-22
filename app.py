@@ -118,8 +118,9 @@ if submitted:
             key_path = f"{key_directory.rstrip('/')}/{selector}.{signing_domain}.pem"
             lines.extend([
                 f"<virtual-mta {vmta_name}>",
-                f"    smtp-source-host {ip} {hostname}",
-                f"    domain-key {selector},{signing_domain},{key_path}",
+                f"smtp-source-host {ip} {hostname}",
+                f"domain-key {selector},{signing_domain},{key_path}",
+                f"host-name {hostname}",
                 "</virtual-mta>",
                 ""
             ])
@@ -135,8 +136,8 @@ if submitted:
             use_container_width=True,
         )
         st.info(
-            "This is a template, not a full PMTA configuration. Confirm the hostname format, "
-            "domain-key syntax, and key-file naming against your installed PMTA version and existing config."
+            "This is a template, not a full PMTA configuration. Confirm that your installed PMTA version supports the separate host-name directive, "
+            "along with domain-key syntax and key-file naming, before deployment."
         )
 
 st.divider()
