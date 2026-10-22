@@ -1,3 +1,67 @@
+import ipaddress
+import re
+import streamlit as st
+
+st.set_page_config(page_title="PMTA Config Generator", page_icon="🛠️", layout="centered")
+
+st.title("PMTA Configuration Generator")
+st.caption("Generate reviewable virtual-MTA configuration blocks from IPs you are authorized to use.")
+
+st.warning(
+    "This tool only generates text; it does not connect to PMTA or send email. "
+    "Use only IP addresses and domains you control or are authorized to administer. "
+    "Review the output with your mail administrator before deploying."
+)
+
+with st.form("config_form"):
+    st.subheader("1. IP addresses")
+    mode = st.radio("How will you provide IPs?", ["Starting IPv4 + count", "Paste IP addresses"], horizontal=False)
+
+    start_ip = ""
+    count = 1
+    pasted_ips = ""
+    if mode == "Starting IPv4 + count":
+        start_ip = st.text_input("Starting IPv4 address", placeholder="192.0.2.10")
+        count = st.number_input("Number of consecutive IPs", min_value=1, max_value=256, value=4, step=1)
+    else:
+        pasted_ips = st.text_area("One IP address per line", placeholder="192.0.2.10\n192.0.2.11", height=120)
+
+    st.subheader("2. VMTA and hostname")
+    vmta_prefix = st.text_input("VMTA prefix", value="outbound")
+    hostname_words = st.text_area(
+        "Hostname labels — one per line (must match number of IPs)",
+        placeholder="Maple\nCedar\nWillow\nJuniper",
+        height=120,
+    )
+    hostname_domain = st.text_input("Hostname domain suffix", placeholder="mail.example.com")
+
+    st.subheader("3. DKIM domain-key")
+    selector = st.text_input("DKIM selector", placeholder="selector1")
+    signing_domain = st.text_input("Signing domain", placeholder="example.com")
+    key_directory = st.text_input("Private-key directory", value="/var/pmtadomain-keys")
+
+    submitted = st.form_submit_button("Generate configuration", type="primary", use_container_width=True)
+
+def safe_label(value: str) -> bool:
+    return bool(re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", value))
+
+def safe_domain(value: str) -> bool:
+    if not value or len(value) > 253:
+        return False
+    parts = value.rstrip(".").split(".")
+    return all(safe_label(p) for p in parts)
+
+if submitted:
+    errors = []
+    ips = []
+
+    if mode == "Starting IPv4 + count":
+        try:
+            first = ipaddress.ip_address(start_ip.strip())
+            if first.version != 4:
+                errors.append("Please enter an IPv4 address.")
+            else:
+                for offset in range(int(count)):
                     candidate = int(first) + offset
                     if candidate > int(ipaddress.IPv4Address("255.255.255.255")):
                         errors.append("The requested range exceeds the IPv4 address limit.")
